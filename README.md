@@ -1,6 +1,7 @@
 백테스트는 backtest_main.py 에 run_backtest()로 실행돼요! (나머지는 데이터수집분석+시각화 함수들)
 
-백테스트 리턴값
+백테스트 리턴값  
+```json
 {
     "metrics": {
         "period": {
@@ -45,7 +46,7 @@
         "risk_return": str        # Base64 인코딩된 위험-수익 산점도
     }
 }
-
+```
 
 
 웹에서 시각화자료 사용하는법
