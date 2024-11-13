@@ -40,7 +40,7 @@
             # ... 다른 종목들
         ]
     },
-    "visualizations": {
+    "visualizations": { # 인코딩된 하나의 해시값으로 되어있음
         "value_changes": str,     # Base64 인코딩된 포트폴리오 가치 변화 그래프
         "composition": str,       # Base64 인코딩된 포트폴리오 구성 파이 차트
         "risk_return": str        # Base64 인코딩된 위험-수익 산점도
@@ -49,5 +49,19 @@
 ```
 
 
-웹에서 시각화자료 사용하는법
-<img src="data:image/png;base64,{visualizations['value_changes']}" />
+========웹에서 시각화자료 사용하는법=========
+
+<h2>포트폴리오 가치 변화</h2>
+<div class="visualization">
+    <img src="data:image/png;base64,{results['visualizations']['value_changes']}" alt="Portfolio Value Changes">
+</div>
+
+<h2>포트폴리오 구성 비율</h2>
+<div class="visualization">
+    <img src="data:image/png;base64,{results['visualizations']['composition']}" alt="Portfolio Composition">
+</div>
+
+<h2>위험-수익 분석</h2>
+<div class="visualization">
+    <img src="data:image/png;base64,{results['visualizations']['risk_return']}" alt="Risk-Return Analysis">
+</div>
