@@ -4,7 +4,7 @@ from datetime import datetime
 import FinanceDataReader as fdr
 from pykrx import stock
 import sqlite3
-from typing import Tuple, Optional
+from typing import Tuple, Optional, List
 from .portfolio import Portfolio
 
 
@@ -16,18 +16,23 @@ class DataLoader:
         self,
         portfolio: Portfolio,
         n_stocks: int = 5,
+        stock_codes: List[str] = None,
         min_dividend: float = 2.0,
         min_liquidity: float = 500,
         max_volatility: float = 40.0,
     ) -> None:
         """주식 데이터 로드"""
-        # DB에서 기본 데이터 로드
-        stock_data = self._load_db_data(
-            limit=n_stocks,
-            min_dividend=min_dividend,
-            min_liquidity=min_liquidity,
-            max_volatility=max_volatility,
-        )
+
+        if stock_codes:
+            stock_data = self._load_specific_stocks(stock_codes)
+        # 조건으로 종목 필터링하는 경우
+        else:
+            stock_data = self._load_db_data(
+                limit=n_stocks,
+                min_dividend=min_dividend,
+                min_liquidity=min_liquidity,
+                max_volatility=max_volatility,
+            )
 
         # 주가 데이터 수집
         valid_stocks = {}
@@ -56,6 +61,35 @@ class DataLoader:
         portfolio.stock_prices = pd.DataFrame(valid_stocks)
         portfolio.stock_info = stock_data[stock_data["code"].isin(valid_stocks.keys())]
         portfolio.benchmark = self._fetch_benchmark_data(portfolio)
+
+    def _load_specific_stocks(self, stock_codes: List[str]) -> pd.DataFrame:
+        """특정 종목들의 데이터를 DB에서 로드"""
+        with sqlite3.connect(self.db_path) as conn:
+            placeholders = ",".join(["?" for _ in stock_codes])
+            query = f"""
+            SELECT 
+                code, 
+                name, 
+                annual_return, 
+                volatility, 
+                dividend_yield, 
+                liquidity
+            FROM stock_analysis
+            WHERE code IN ({placeholders})
+            """
+            df = pd.read_sql(query, conn, params=stock_codes)
+
+        if df.empty:
+            raise ValueError(f"지정된 종목 코드에 대한 데이터를 찾을 수 없습니다")
+
+        print(f"\n=== 선택된 종목 ({len(df)}개) ===")
+        for _, row in df.iterrows():
+            print(f"{row['code']} ({row['name']}):")
+            print(f"  배당수익률: {row['dividend_yield']:.1f}%")
+            print(f"  일평균거래대금: {row['liquidity']/1_000_000:.0f}백만원")
+            print(f"  변동성: {row['volatility']:.1f}%")
+
+        return df
 
     def _load_db_data(
         self,
