@@ -210,9 +210,18 @@ def specific_backtest(
 
 
 if __name__ == "__main__":
+    import json
+    import base64
+    from PIL import Image
+    import io
+    import os
+    from datetime import datetime
+    import webbrowser
+
     # 테스트를 위한 실행
-    results = specific_backtest(
-        stock_names=["삼성전자", "SK하이닉스", "현대차", "NAVER"]
+    results = run_backtest(
+        n_stocks=5,
+        min_dividend=2.0,
     )
 
     # 결과 확인
@@ -230,6 +239,141 @@ if __name__ == "__main__":
         print("\n포트폴리오 구성:")
         for stock in results["metrics"]["portfolio"]["composition"]:
             print(
-                f"{stock['name']}: {stock['weight']:.1f}% "
-                f"(배당수익률: {stock['dividend_yield']:.1f}%)"
+                f"{stock['name']}: {stock['weight']:.1f}% (배당수익률: {stock['dividend_yield']:.1f}%)"
             )
+
+        print("\n시각화 데이터 포함 여부:")
+        for key in results["visualizations"].keys():
+            print(f"- {key}: {'성공' if results['visualizations'][key] else '실패'}")
+
+        # 시각화 데이터를 제외한 메트릭스만 상세 출력
+        metrics_only = results.copy()
+        metrics_only.pop("visualizations")
+
+        print("\n=== 전체 메트릭스 상세 정보 ===")
+        print(json.dumps(metrics_only, indent=2, ensure_ascii=False))
+
+        # HTML 파일 생성
+        timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+        img_dir = "backtest_results"
+        if not os.path.exists(img_dir):
+            os.makedirs(img_dir)
+
+        html_content = f"""
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>백테스트 결과 - {timestamp}</title>
+            <style>
+                body {{
+                    font-family: Arial, sans-serif;
+                    max-width: 1200px;
+                    margin: 0 auto;
+                    padding: 20px;
+                }}
+                .metrics {{
+                    background-color: #f5f5f5;
+                    padding: 20px;
+                    border-radius: 5px;
+                    margin-bottom: 20px;
+                }}
+                .visualization {{
+                    margin-bottom: 30px;
+                    text-align: center;
+                }}
+                .visualization img {{
+                    max-width: 100%;
+                    height: auto;
+                    border: 1px solid #ddd;
+                    border-radius: 5px;
+                }}
+                h2 {{
+                    color: #333;
+                    border-bottom: 2px solid #ddd;
+                    padding-bottom: 10px;
+                }}
+                table {{
+                    width: 100%;
+                    border-collapse: collapse;
+                    margin: 10px 0;
+                }}
+                th, td {{
+                    padding: 8px;
+                    text-align: left;
+                    border-bottom: 1px solid #ddd;
+                }}
+                th {{
+                    background-color: #f0f0f0;
+                }}
+            </style>
+        </head>
+        <body>
+            <h1>백테스트 결과 ({timestamp})</h1>
+            
+            <div class="metrics">
+                <h2>포트폴리오 성과</h2>
+                <table>
+                    <tr>
+                        <th>지표</th>
+                        <th>값</th>
+                    </tr>
+                    <tr>
+                        <td>포트폴리오 총 수익률</td>
+                        <td>{results['metrics']['portfolio']['total_return']:.2f}%</td>
+                    </tr>
+                    <tr>
+                        <td>벤치마크 총 수익률</td>
+                        <td>{results['metrics']['benchmark']['total_return']:.2f}%</td>
+                    </tr>
+                    <tr>
+                        <td>샤프 비율</td>
+                        <td>{results['metrics']['portfolio']['sharpe_ratio']:.2f}</td>
+                    </tr>
+                    <tr>
+                        <td>최대 낙폭</td>
+                        <td>{results['metrics']['portfolio']['max_drawdown']:.2f}%</td>
+                    </tr>
+                </table>
+
+                <h2>포트폴리오 구성</h2>
+                <table>
+                    <tr>
+                        <th>종목명</th>
+                        <th>비중</th>
+                        <th>배당수익률</th>
+                    </tr>
+                    {"".join([f'''
+                    <tr>
+                        <td>{stock['name']}</td>
+                        <td>{stock['weight']:.1f}%</td>
+                        <td>{stock['dividend_yield']:.1f}%</td>
+                    </tr>
+                    ''' for stock in results['metrics']['portfolio']['composition']])}
+                </table>
+            </div>
+
+            <h2>포트폴리오 가치 변화</h2>
+            <div class="visualization">
+                <img src="data:image/png;base64,{results['visualizations']['value_changes']}" alt="Portfolio Value Changes">
+            </div>
+
+            <h2>포트폴리오 구성 비율</h2>
+            <div class="visualization">
+                <img src="data:image/png;base64,{results['visualizations']['composition']}" alt="Portfolio Composition">
+            </div>
+
+            <h2>위험-수익 분석</h2>
+            <div class="visualization">
+                <img src="data:image/png;base64,{results['visualizations']['risk_return']}" alt="Risk-Return Analysis">
+            </div>
+        </body>
+        </html>
+        """
+
+        html_path = os.path.join(img_dir, f"backtest_report_{timestamp}.html")
+        with open(html_path, "w", encoding="utf-8") as f:
+            f.write(html_content)
+
+        print(f"\n리포트가 생성되었습니다: {html_path}")
+        # 웹 브라우저로 HTML 파일 열기
+        webbrowser.open(f"file://{os.path.abspath(html_path)}")
